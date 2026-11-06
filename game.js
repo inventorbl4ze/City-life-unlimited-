@@ -115,20 +115,21 @@ scene.add(car);
 const carPaint = material(0x167f9c, 0.32, 0.35);
 const carBody = box(car, 0, 0.85, 0, 2.25, 0.75, 4.2, carPaint);
 const carCabin = box(car, 0, 1.48, -0.35, 1.8, 0.85, 2.15, material(0x1d5368, 0.28, 0.2));
+const sedanParts = [carBody, carCabin];
 const tireMat = material(0x171b20, 0.9);
 const rimMat = material(0xc5d1d4, 0.3, 0.65);
 const wheelMeshes = [];
 
-box(car, 0, 1.52, 0.78, 1.72, 0.68, 0.08, mats.glass);
-box(car, 0, 1.52, -1.47, 1.72, 0.68, 0.08, mats.glass);
-box(car, -0.94, 1.5, -0.35, 0.08, 0.7, 1.8, mats.glass);
-box(car, 0.94, 1.5, -0.35, 0.08, 0.7, 1.8, mats.glass);
+sedanParts.push(box(car, 0, 1.52, 0.78, 1.72, 0.68, 0.08, mats.glass));
+sedanParts.push(box(car, 0, 1.52, -1.47, 1.72, 0.68, 0.08, mats.glass));
+sedanParts.push(box(car, -0.94, 1.5, -0.35, 0.08, 0.7, 1.8, mats.glass));
+sedanParts.push(box(car, 0.94, 1.5, -0.35, 0.08, 0.7, 1.8, mats.glass));
 const headlightMat = material(0xfff1bf, 0.25, 0.1);
 const tailMat = material(0xe63b37, 0.3);
-box(car, -0.72, 0.88, 2.12, 0.38, 0.22, 0.08, headlightMat);
-box(car, 0.72, 0.88, 2.12, 0.38, 0.22, 0.08, headlightMat);
-box(car, -0.72, 0.9, -2.12, 0.38, 0.22, 0.08, tailMat);
-box(car, 0.72, 0.9, -2.12, 0.38, 0.22, 0.08, tailMat);
+sedanParts.push(box(car, -0.72, 0.88, 2.12, 0.38, 0.22, 0.08, headlightMat));
+sedanParts.push(box(car, 0.72, 0.88, 2.12, 0.38, 0.22, 0.08, headlightMat));
+sedanParts.push(box(car, -0.72, 0.9, -2.12, 0.38, 0.22, 0.08, tailMat));
+sedanParts.push(box(car, 0.72, 0.9, -2.12, 0.38, 0.22, 0.08, tailMat));
 for (const x of [-1.12, 1.12]) {
   for (const z of [-1.35, 1.35]) {
     const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.43, 0.43, 0.28, 16), tireMat);
@@ -143,6 +144,41 @@ for (const x of [-1.12, 1.12]) {
     wheelMeshes.push(wheel, rim);
   }
 }
+
+// A low, angular Italian-inspired supercar body, separate from the sedan shell.
+const lamboModel = new THREE.Group();
+car.add(lamboModel);
+const lamboPaint = material(0xc6a800, 0.25, 0.55);
+const wedgeShape = new THREE.Shape();
+wedgeShape.moveTo(-1.12, 0.05);
+wedgeShape.lineTo(1.12, 0.05);
+wedgeShape.lineTo(0.98, 0.42);
+wedgeShape.lineTo(0.58, 0.72);
+wedgeShape.lineTo(-0.58, 0.72);
+wedgeShape.lineTo(-0.98, 0.42);
+wedgeShape.close();
+const wedgeGeometry = new THREE.ExtrudeGeometry(wedgeShape, { depth: 3.9, bevelEnabled: true, bevelSegments: 2, steps: 1, bevelSize: 0.06, bevelThickness: 0.06 });
+wedgeGeometry.translate(0, 0, -1.95);
+const wedgeBody = new THREE.Mesh(wedgeGeometry, lamboPaint);
+wedgeBody.position.y = 0.52;
+wedgeBody.castShadow = true;
+wedgeBody.receiveShadow = true;
+lamboModel.add(wedgeBody);
+const canopy = new THREE.Mesh(new THREE.BoxGeometry(1.35, 0.58, 1.65), material(0x183746, 0.2, 0.35));
+canopy.position.set(0, 1.13, -0.28);
+canopy.castShadow = true;
+lamboModel.add(canopy);
+const lamboGlass = material(0x72b8c8, 0.18, 0.35);
+box(lamboModel, 0, 1.16, 0.58, 1.22, 0.38, 0.06, lamboGlass);
+box(lamboModel, 0, 1.16, -1.12, 1.22, 0.38, 0.06, lamboGlass);
+const splitter = box(lamboModel, 0, 0.48, 2.02, 2.2, 0.1, 0.32, material(0x171c22, 0.45, 0.2));
+box(lamboModel, -0.88, 0.72, 1.65, 0.22, 0.1, 0.62, headlightMat);
+box(lamboModel, 0.88, 0.72, 1.65, 0.22, 0.1, 0.62, headlightMat);
+box(lamboModel, 0, 0.95, -1.92, 1.9, 0.12, 0.16, tailMat);
+box(lamboModel, -0.9, 0.95, -1.68, 0.12, 0.42, 0.12, material(0x171c22));
+box(lamboModel, 0.9, 0.95, -1.68, 0.12, 0.42, 0.12, material(0x171c22));
+lamboModel.visible = false;
+
 car.position.set(0, 0, 0);
 
 let money = 50000;
@@ -166,7 +202,8 @@ let acceleration = 25;
 const vehicleOptions = [
   { name: 'SEDAN', color: 0x167f9c, scale: [1, 1, 1], max: 42, accel: 25 },
   { name: 'SUV', color: 0x3c8056, scale: [1.12, 1.12, 1.04], max: 34, accel: 20 },
-  { name: 'SPORT', color: 0xc34b39, scale: [0.98, 0.88, 1.08], max: 54, accel: 31 }
+  { name: 'SPORT', color: 0xc34b39, scale: [0.98, 0.88, 1.08], max: 54, accel: 31 },
+  { name: 'LAMBORGHINI', color: 0xc6a800, scale: [1, 1, 1], max: 66, accel: 38, model: 'lambo' }
 ];
 let vehicleIndex = 0;
 const vehicleButton = document.querySelector('#vehicleBtn');
@@ -174,11 +211,13 @@ vehicleButton.addEventListener('click', () => {
   vehicleIndex = (vehicleIndex + 1) % vehicleOptions.length;
   const option = vehicleOptions[vehicleIndex];
   carPaint.color.setHex(option.color);
+  sedanParts.forEach(part => part.visible = option.model !== 'lambo');
+  lamboModel.visible = option.model === 'lambo';
   car.scale.set(...option.scale);
   maxSpeed = option.max;
   acceleration = option.accel;
   velocity = 0;
-  vehicleButton.textContent = 'CAR: ' + option.name;
+  vehicleButton.textContent = 'CAR: ' + (option.name === 'LAMBORGHINI' ? 'LAMBO' : option.name);
   notify(option.name + ' selected');
 });
 const clock = new THREE.Clock();
