@@ -7,7 +7,8 @@ Open the GitHub Pages website: https://inventorbl4ze.github.io/City-life-unlimit
 
 ## Current version
 - Third-person 3D driving camera
-- Three selectable vehicle styles: sedan, SUV and sports car
+- Four selectable vehicles: sedan, SUV, sports car and a Lamborghini-inspired supercar
+- Distinct low, angular supercar body, gold paint, and higher performance tuning
 - Driveable original city car with rolling wheels
 - Different vehicle colours, sizes, acceleration and top speeds
 - Touch controls for acceleration, reverse, steering and braking
