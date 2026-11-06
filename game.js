@@ -113,11 +113,12 @@ for (let i = 0; i < 260; i++) {
 const car = new THREE.Group();
 scene.add(car);
 const carPaint = material(0x167f9c, 0.32, 0.35);
+const carBody = box(car, 0, 0.85, 0, 2.25, 0.75, 4.2, carPaint);
+const carCabin = box(car, 0, 1.48, -0.35, 1.8, 0.85, 2.15, material(0x1d5368, 0.28, 0.2));
 const tireMat = material(0x171b20, 0.9);
 const rimMat = material(0xc5d1d4, 0.3, 0.65);
 const wheelMeshes = [];
-box(car, 0, 0.85, 0, 2.25, 0.75, 4.2, carPaint);
-box(car, 0, 1.48, -0.35, 1.8, 0.85, 2.15, material(0x1d5368, 0.28, 0.2));
+
 box(car, 0, 1.52, 0.78, 1.72, 0.68, 0.08, mats.glass);
 box(car, 0, 1.52, -1.47, 1.72, 0.68, 0.08, mats.glass);
 box(car, -0.94, 1.5, -0.35, 0.08, 0.7, 1.8, mats.glass);
@@ -160,7 +161,26 @@ function notify(message) {
 const input = { forward: false, back: false, left: false, right: false, brake: false };
 let velocity = 0;
 let steering = 0;
-const maxSpeed = 42;
+let maxSpeed = 42;
+let acceleration = 25;
+const vehicleOptions = [
+  { name: 'SEDAN', color: 0x167f9c, scale: [1, 1, 1], max: 42, accel: 25 },
+  { name: 'SUV', color: 0x3c8056, scale: [1.12, 1.12, 1.04], max: 34, accel: 20 },
+  { name: 'SPORT', color: 0xc34b39, scale: [0.98, 0.88, 1.08], max: 54, accel: 31 }
+];
+let vehicleIndex = 0;
+const vehicleButton = document.querySelector('#vehicleBtn');
+vehicleButton.addEventListener('click', () => {
+  vehicleIndex = (vehicleIndex + 1) % vehicleOptions.length;
+  const option = vehicleOptions[vehicleIndex];
+  carPaint.color.setHex(option.color);
+  car.scale.set(...option.scale);
+  maxSpeed = option.max;
+  acceleration = option.accel;
+  velocity = 0;
+  vehicleButton.textContent = 'CAR: ' + option.name;
+  notify(option.name + ' selected');
+});
 const clock = new THREE.Clock();
 
 function setKey(key, down) {
@@ -208,7 +228,7 @@ document.querySelector('#closeMap').onclick = () => mapPanel.classList.add('hidd
 function animate() {
   requestAnimationFrame(animate);
   const dt = Math.min(clock.getDelta(), 0.04);
-  if (input.forward) velocity += 25 * dt;
+  if (input.forward) velocity += acceleration * dt;
   if (input.back) velocity -= 20 * dt;
   if (!input.forward && !input.back) velocity *= Math.pow(0.985, dt * 60);
   if (input.brake) velocity *= Math.pow(0.88, dt * 60);
