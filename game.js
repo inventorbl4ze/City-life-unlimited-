@@ -181,9 +181,158 @@ lamboModel.visible = false;
 
 car.position.set(0, 0, 0);
 
-let money = 50000;
+const SAVE_KEY = 'cityLifeUnlimitedSave';
+let savedGame = {};
+try { savedGame = JSON.parse(localStorage.getItem(SAVE_KEY) || '{}') || {}; } catch { savedGame = {}; }
+let money = Number.isFinite(savedGame.money) ? Math.max(0, savedGame.money) : 50000;
+let ownsLamborghini = savedGame.ownsLamborghini === true;
+function saveGame() {
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ money, ownsLamborghini })); } catch {}
+}
 const moneyEl = document.querySelector('#money');
-moneyEl.textContent = '$' + money.toLocaleString('en-US');
+function updateMoney() { moneyEl.textContent = '
+const speedEl = document.querySelector('#speed');
+const toast = document.querySelector('#toast');
+let toastTimer;
+function notify(message) {
+  toast.textContent = message;
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 2200);
+}
+
+const input = { forward: false, back: false, left: false, right: false, brake: false };
+let velocity = 0;
+let steering = 0;
+let maxSpeed = 42;
+let acceleration = 25;
+const vehicleOptions = [
+  { name: 'SEDAN', color: 0x167f9c, scale: [1, 1, 1], max: 42, accel: 25 },
+  { name: 'SUV', color: 0x3c8056, scale: [1.12, 1.12, 1.04], max: 34, accel: 20 },
+  { name: 'SPORT', color: 0xc34b39, scale: [0.98, 0.88, 1.08], max: 54, accel: 31 },
+  { name: 'LAMBORGHINI', color: 0xc6a800, scale: [1, 1, 1], max: 66, accel: 38, model: 'lambo' }
+];
+let vehicleIndex = 0;
+const vehicleButton = document.querySelector('#vehicleBtn');
+const LAMBORGHINI_PRICE = 35000;
+function refreshVehicleButton() {
+  vehicleButton.textContent = vehicleIndex === 3 && !ownsLamborghini
+    ? 'BUY LAMBO $35K'
+    : 'CAR: ' + (vehicleOptions[vehicleIndex].name === 'LAMBORGHINI' ? 'LAMBO' : vehicleOptions[vehicleIndex].name);
+}
+function chooseVehicle(index) {
+  const option = vehicleOptions[index];
+  carPaint.color.setHex(option.color);
+  sedanParts.forEach(part => part.visible = option.model !== 'lambo');
+  lamboModel.visible = option.model === 'lambo';
+  car.scale.set(...option.scale);
+  maxSpeed = option.max;
+  acceleration = option.accel;
+  velocity = 0;
+  vehicleIndex = index;
+  refreshVehicleButton();
+  notify(option.name + ' selected');
+}
+refreshVehicleButton();
+vehicleButton.addEventListener('click', () => {
+  const nextIndex = (vehicleIndex + 1) % vehicleOptions.length;
+  if (nextIndex === 3 && !ownsLamborghini) {
+    if (money < LAMBORGHINI_PRICE) {
+      notify('You need $35,000 to buy the Lamborghini.');
+      return;
+    }
+    money -= LAMBORGHINI_PRICE;
+    ownsLamborghini = true;
+    saveGame();
+    updateMoney();
+    notify('Lamborghini purchased for $35,000!');
+  }
+  chooseVehicle(nextIndex);
+});
+const clock = new THREE.Clock();
+
+function setKey(key, down) {
+  if (key === 'w' || key === 'arrowup') input.forward = down;
+  if (key === 's' || key === 'arrowdown') input.back = down;
+  if (key === 'a' || key === 'arrowleft') input.left = down;
+  if (key === 'd' || key === 'arrowright') input.right = down;
+}
+addEventListener('keydown', e => {
+  const key = e.key.toLowerCase();
+  setKey(key, true);
+  if (key.startsWith('arrow') || key === ' ') e.preventDefault();
+  if (key === ' ') input.brake = true;
+  if (key === 'h') notify('Beep beep!');
+});
+addEventListener('keyup', e => {
+  const key = e.key.toLowerCase();
+  setKey(key, false);
+  if (key === ' ') input.brake = false;
+});
+document.querySelectorAll('[data-move]').forEach(button => {
+  const key = button.dataset.move;
+  button.addEventListener('pointerdown', e => { e.preventDefault(); input[key] = true; });
+  ['pointerup', 'pointerleave', 'pointercancel'].forEach(eventName =>
+    button.addEventListener(eventName, () => input[key] = false)
+  );
+});
+document.querySelector('#brakeBtn').addEventListener('pointerdown', () => input.brake = true);
+['pointerup', 'pointerleave', 'pointercancel'].forEach(eventName =>
+  document.querySelector('#brakeBtn').addEventListener(eventName, () => input.brake = false)
+);
+document.querySelector('#hornBtn').onclick = () => notify('Beep beep! Welcome to the city.');
+document.querySelector('#startBtn').onclick = async () => {
+  document.querySelector('#welcome').classList.add('hidden');
+  try { if (screen.orientation?.lock) await screen.orientation.lock('landscape'); } catch {}
+};
+
+const mapPanel = document.querySelector('#mapPanel');
+document.querySelector('#mapBtn').onclick = () => {
+  mapPanel.classList.remove('hidden');
+  document.querySelector('#mapList').innerHTML = destinations.slice(0, 32).map(place =>
+    '<div class="mapPlace">' + place.name + ' · ' +
+    Math.round(Math.hypot(place.x - car.position.x, place.z - car.position.z)) + 'm away</div>'
+  ).join('');
+};
+document.querySelector('#closeMap').onclick = () => mapPanel.classList.add('hidden');
+
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.04);
+  if (input.forward) velocity += acceleration * dt;
+  if (input.back) velocity -= 20 * dt;
+  if (!input.forward && !input.back) velocity *= Math.pow(0.985, dt * 60);
+  if (input.brake) velocity *= Math.pow(0.88, dt * 60);
+  velocity = THREE.MathUtils.clamp(velocity, -13, maxSpeed);
+
+  const steeringInput = (input.left ? 1 : 0) - (input.right ? 1 : 0);
+  steering = THREE.MathUtils.lerp(steering, steeringInput, Math.min(1, dt * 5));
+  if (Math.abs(velocity) > 0.3) car.rotation.y += steering * dt * 1.35 * Math.sign(velocity) * Math.min(1, Math.abs(velocity) / 8);
+  const forward = new THREE.Vector3(Math.sin(car.rotation.y), 0, Math.cos(car.rotation.y));
+  car.position.addScaledVector(forward, velocity * dt);
+  car.position.x = THREE.MathUtils.clamp(car.position.x, -320, 320);
+  car.position.z = THREE.MathUtils.clamp(car.position.z, -320, 320);
+  wheelMeshes.forEach(wheel => wheel.rotation.x += velocity * dt / 0.43);
+
+  const follow = new THREE.Vector3(
+    car.position.x - Math.sin(car.rotation.y) * 10,
+    6.2,
+    car.position.z - Math.cos(car.rotation.y) * 10
+  );
+  camera.position.lerp(follow, 1 - Math.pow(0.001, dt));
+  camera.lookAt(car.position.x, car.position.y + 1, car.position.z + 1);
+  speedEl.textContent = Math.round(Math.abs(velocity) * 3.6) + ' KM/H';
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+ + money.toLocaleString('en-US'); }
+updateMoney();
 const speedEl = document.querySelector('#speed');
 const toast = document.querySelector('#toast');
 let toastTimer;
