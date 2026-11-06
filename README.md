@@ -7,7 +7,9 @@ Open the GitHub Pages website: https://inventorbl4ze.github.io/City-life-unlimit
 
 ## Current version
 - Third-person 3D driving camera
+- Three selectable vehicle styles: sedan, SUV and sports car
 - Driveable original city car with rolling wheels
+- Different vehicle colours, sizes, acceleration and top speeds
 - Touch controls for acceleration, reverse, steering and braking
 - Keyboard controls: W/A/S/D or arrow keys; Space to brake; H for horn
 - Large grid city with roads, sidewalks, buildings, trees and destination signs
