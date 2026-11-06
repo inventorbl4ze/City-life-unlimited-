@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#101923"><title>CITY LIFE: UNLIMITED</title>
+<link rel="stylesheet" href="./style.css">
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js"}}</script>
+</head>
+<body>
+<div id="game"></div>
+<header class="hud"><div class="brand">CITY LIFE <b>UNLIMITED</b></div><div class="money" id="money">$50,000</div><button id="mapBtn">MAP</button></header>
+<section id="welcome" class="panel welcome"><p class="eyebrow">YOUR CITY. YOUR STORY.</p><h1>WELCOME TO<br><span>THE CITY</span></h1><p>Explore a living modern city, visit buildings, shop and build your dream home.</p><button id="startBtn" class="primary">ENTER THE CITY</button><small>Single player · Mobile friendly</small></section>
+<div id="toast" class="toast"></div>
+<div id="prompt" class="prompt hidden"></div>
+<div id="interior" class="panel interior hidden"><button id="closeInterior" class="close">✕</button><p class="eyebrow" id="placeType">CITY LOCATION</p><h2 id="placeTitle">Shop</h2><p id="placeDesc"></p><div id="shopItems" class="items"></div></div>
+<div class="controls"><div class="move"><button data-move="forward">▲</button><div><button data-move="left">◀</button><button data-move="back">▼</button><button data-move="right">▶</button></div></div><div class="actions"><button id="interactBtn">ENTER / USE</button><button id="jumpBtn">JUMP</button></div></div>
+<div id="mapPanel" class="panel map hidden"><button id="closeMap" class="close">✕</button><h2> CITY MAP</h2><p>Explore the roads and discover places marked around you.</p><div id="mapList"></div></div>
+<div class="hint">WASD / arrow keys to move · Use ENTER / USE near buildings</div>
+<script type="module" src="./game.js"></script>
+</body></html>
