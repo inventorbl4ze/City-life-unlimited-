@@ -1,33 +1,242 @@
 import * as THREE from 'three';
-const scene=new THREE.Scene();scene.background=new THREE.Color(0x9fc5d4);scene.fog=new THREE.FogExp2(0x9fc5d4,.0025);
-const camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,.1,500);
-const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.1;renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;document.querySelector('#game').appendChild(renderer.domElement);
-scene.add(new THREE.HemisphereLight(0xd9efff,0x52634d,2));const sun=new THREE.DirectionalLight(0xffe2b8,3);sun.position.set(-45,80,35);sun.castShadow=true;scene.add(sun);
-const mat=(c,r=.85)=>new THREE.MeshStandardMaterial({color:c,roughness:r});
-const grass=mat(0x688b63),road=mat(0x343b43),sidewalk=mat(0xaeb5b4),white=mat(0xe9e6d9),glass=new THREE.MeshStandardMaterial({color:0x68b8cb,metalness:.45,roughness:.18}),dark=mat(0x263746),green=mat(0x3d8b62),yellow=mat(0xd7a94e);
-function cube(x,y,z,w,h,d,m,parent=scene){let o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;parent.add(o);return o}
-cube(0,-.5,0,620,1,620,grass);
-for(let i=-9;i<=9;i++){cube(i*22,.01,0,9,.12,260,road);cube(0,.02,i*22,260,.12,9,road);cube(i*22+5,.08,0,1.5,.18,260,sidewalk);cube(0,.08,i*22+5,260,.18,1.5,sidewalk)}
-const buildings=[];const places=[];
-const defs=[['SUPERMARKET','Food and daily essentials','food'],['FURNITURE STORE','Beds, chairs and home decor','furniture'],['RESTAURANT','Enjoy a meal in the city','food'],['BANK','Manage your savings','bank'],['HOSPITAL','City health centre','service'],['SHOPPING MALL','Explore stores and boutiques','mall'],['YOUR HOME','Decorate your own place','home'],['ELECTRONICS','Devices and gadgets','electronics']];
-const colors=[0xd7e4e8,0xc8d5df,0xe1c9ad,0x9db9c8,0xdce5e8,0xc6d9db,0xd4c5a8,0x9eb4c7];
-let n=0;for(let gx=-8;gx<=8;gx++)for(let gz=-8;gz<=8;gz++){if(Math.abs(gx)<=1&&Math.abs(gz)<=1)continue;let idx=n%defs.length,x=gx*32+(gx<0?-5:5),z=gz*32+(gz<0?-5:5),w=12+((n*7)%7),d=12+((n*3)%7),h=12+((n*11)%25);let base=new THREE.Group();base.position.set(x,0,z);scene.add(base);cube(0,h/2,0,w,h,d,mat(colors[idx]));cube(0,h+.12,0,w+.25,.25,d+.25,dark);for(let yy=2;yy<h-1;yy+=2.6){for(let xx=-w/2+1;xx<w/2;xx+=2.2)cube(xx,yy,d/2+.035,1.1,1.25,.08,glass,base)}cube(0,1.3,d/2+.09,2.3,2.6,.16,dark,base);cube(0,3.5,d/2+.14,w*.78,.65,.18,green,base);const def=defs[idx];const label=makeLabel(def[0]);label.position.set(0,h+1.3,d/2+.25);base.add(label);buildings.push({x,z,w,d,h,base});places.push({name:def[0],desc:def[1],type:def[2],x,z})}
-function makeLabel(s){let c=document.createElement('canvas');c.width=512;c.height=96;let ctx=c.getContext('2d');ctx.fillStyle='#102b38';ctx.fillRect(0,0,512,96);ctx.fillStyle='#76f5dc';ctx.font='bold 38px Arial';ctx.textAlign='center';ctx.fillText(s,256,62);let t=new THREE.CanvasTexture(c);let m=new THREE.Sprite(new THREE.SpriteMaterial({map:t}));m.scale.set(8,1.5,1);return m}
-function tree(x,z){cube(x,1,z,.55,2,.55,mat(0x70513b));let a=new THREE.Mesh(new THREE.SphereGeometry(1.8,8,7),green);a.position.set(x,3,z);scene.add(a)}for(let i=0;i<240;i++){let x=(Math.random()-.5)*560,z=(Math.random()-.5)*560;if(Math.abs(x%22)>7&&Math.abs(z%22)>7)tree(x,z)}
-const player=new THREE.Group();scene.add(player);let body=new THREE.Mesh(new THREE.CapsuleGeometry(.48,.95,4,8),mat(0x245c91));body.position.y=1.05;player.add(body);let head=new THREE.Mesh(new THREE.SphereGeometry(.32,12,10),mat(0xb77c57));head.position.y=1.9;player.add(head);player.position.set(0,0,0);
-let money=50000;const purchased=[];let active=null,inside=false,move={forward:false,back:false,left:false,right:false};let velocityY=0;
-const moneyEl=document.querySelector('#money');function cash(){moneyEl.textContent='$'+money.toLocaleString('en-US')}cash();
-const toast=document.querySelector('#toast');function say(s){toast.textContent=s;toast.classList.add('show');clearTimeout(window.toastTimer);window.toastTimer=setTimeout(()=>toast.classList.remove('show'),2400)}
-const interior=document.querySelector('#interior'),items=document.querySelector('#shopItems');
-const catalog=[['Modern sofa','$1,200',1200],['Luxury bed','$2,500',2500],['Dining chair','$350',350],['Dining table','$900',900],['Floor lamp','$180',180],['Smart TV','$1,100',1100],['Kitchen set','$3,200',3200],['Indoor plant','$90',90]];
-function openPlace(p){inside=true;interior.classList.remove('hidden');document.querySelector('#placeType').textContent=p.type.toUpperCase();document.querySelector('#placeTitle').textContent=p.name;document.querySelector('#placeDesc').textContent=p.desc+'. Welcome inside!';items.innerHTML='';let choices=p.type==='furniture'||p.type==='home'?catalog:p.type==='food'?[['Meal','$25',25],['Family meal','$65',65],['Takeaway','$18',18]]:p.type==='bank'?[['Deposit $500','$500',0],['Deposit $1,000','$1,000',0]]:[['Browse location','FREE',0],['City service','FREE',0]];choices.forEach(([name,price,cost])=>{let card=document.createElement('div');card.className='item';let owned=purchased.includes(name);card.innerHTML='<strong>'+name+'</strong><span>'+price+'</span><button>'+(owned?'OWNED':cost?'BUY':'SELECT')+'</button>';card.querySelector('button').onclick=()=>{if(owned)return;if(cost>money){say('Not enough money.');return}if(p.type==='bank'&&name.startsWith('Deposit')){say('Bank service selected.');return}money-=cost;purchased.push(name);cash();card.querySelector('button').textContent='OWNED';say(name+' purchased!')};items.appendChild(card)})}
-document.querySelector('#closeInterior').onclick=()=>{inside=false;interior.classList.add('hidden')};
-function interact(){if(inside)return;if(active){openPlace(active)}else say('Walk closer to a building to enter it.')}
-document.querySelector('#interactBtn').onclick=interact;document.querySelector('#startBtn').onclick=()=>document.querySelector('#welcome').classList.add('hidden');
-document.querySelector('#jumpBtn').onclick=()=>{if(player.position.y<.05)velocityY=7};
-document.querySelector('#mapBtn').onclick=()=>{document.querySelector('#mapPanel').classList.remove('hidden');document.querySelector('#mapList').innerHTML=places.map(p=>'<div class="mapPlace">'+p.name+' · '+Math.round(Math.hypot(p.x-player.position.x,p.z-player.position.z))+'m away</div>').join('')};document.querySelector('#closeMap').onclick=()=>document.querySelector('#mapPanel').classList.add('hidden');
-document.querySelectorAll('[data-move]').forEach(b=>{let k=b.dataset.move;b.addEventListener('pointerdown',e=>{e.preventDefault();move[k]=true});['pointerup','pointerleave','pointercancel'].forEach(ev=>b.addEventListener(ev,()=>move[k]=false))});
-addEventListener('keydown',e=>{let k=e.key.toLowerCase();if(k==='w'||k==='arrowup')move.forward=true;if(k==='s'||k==='arrowdown')move.back=true;if(k==='a'||k==='arrowleft')move.left=true;if(k==='d'||k==='arrowright')move.right=true;if(k==='e'||k===' ')interact()});addEventListener('keyup',e=>{let k=e.key.toLowerCase();if(k==='w'||k==='arrowup')move.forward=false;if(k==='s'||k==='arrowdown')move.back=false;if(k==='a'||k==='arrowleft')move.left=false;if(k==='d'||k==='arrowright')move.right=false});
-const clock=new THREE.Clock();function loop(){requestAnimationFrame(loop);let dt=Math.min(clock.getDelta(),.04);if(!inside){let dx=(move.right?1:0)-(move.left?1:0),dz=(move.back?1:0)-(move.forward?1:0);let len=Math.hypot(dx,dz)||1;dx/=len;dz/=len;player.position.x+=dx*10*dt;player.position.z+=dz*10*dt;player.position.x=THREE.MathUtils.clamp(player.position.x,-285,285);player.position.z=THREE.MathUtils.clamp(player.position.z,-285,285);if(dx||dz)player.rotation.y=Math.atan2(dx,dz);player.position.y+=velocityY*dt;velocityY-=18*dt;if(player.position.y<0){player.position.y=0;velocityY=0}}
-active=places.find(p=>Math.hypot(p.x-player.position.x,p.z-player.position.z)<8)||null;let prompt=document.querySelector('#prompt');prompt.classList.toggle('hidden',!active||inside);if(active&&!inside)prompt.textContent='ENTER: '+active.name+' · Tap ENTER / USE';let behind=new THREE.Vector3(Math.sin(player.rotation.y),0,Math.cos(player.rotation.y)).multiplyScalar(9);let target=new THREE.Vector3(player.position.x+behind.x,player.position.y+5.2,player.position.z+behind.z);camera.position.lerp(target,.12);camera.lookAt(player.position.x,player.position.y+1.3,player.position.z);renderer.render(scene,camera)}
-loop();addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x9bc5d5);
+scene.fog = new THREE.Fog(0x9bc5d5, 150, 620);
+const camera = new THREE.PerspectiveCamera(65, innerWidth / innerHeight, 0.1, 900);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+renderer.setSize(innerWidth, innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.15;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.querySelector('#game').appendChild(renderer.domElement);
+
+scene.add(new THREE.HemisphereLight(0xdceeff, 0x53634c, 2.1));
+const sun = new THREE.DirectionalLight(0xffe4bd, 2.8);
+sun.position.set(-80, 130, 60);
+sun.castShadow = true;
+sun.shadow.mapSize.set(1024, 1024);
+scene.add(sun);
+
+const material = (color, roughness = 0.82, metalness = 0) =>
+  new THREE.MeshStandardMaterial({ color, roughness, metalness });
+const mats = {
+  grass: material(0x668b62), road: material(0x303943), line: material(0xe7e4cf),
+  pavement: material(0xb7bfbd), glass: material(0x70b9cb, 0.22, 0.3),
+  dark: material(0x253746), tree: material(0x397c4b), trunk: material(0x75513a)
+};
+function box(parent, x, y, z, w, h, d, mat) {
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+  mesh.position.set(x, y, z);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  parent.add(mesh);
+  return mesh;
+}
+
+// Ground and a connected grid of wide city roads.
+box(scene, 0, -0.7, 0, 700, 1, 700, mats.grass);
+for (let i = -8; i <= 8; i++) {
+  const p = i * 40;
+  box(scene, p, 0.02, 0, 13, 0.12, 680, mats.road);
+  box(scene, 0, 0.02, p, 680, 0.12, 13, mats.road);
+  box(scene, p - 7.8, 0.08, 0, 2.5, 0.16, 680, mats.pavement);
+  box(scene, p + 7.8, 0.08, 0, 2.5, 0.16, 680, mats.pavement);
+  box(scene, 0, 0.08, p - 7.8, 680, 0.16, 2.5, mats.pavement);
+  box(scene, 0, 0.08, p + 7.8, 680, 0.16, 2.5, mats.pavement);
+  for (let k = -8; k <= 8; k++) {
+    box(scene, p, 0.095, k * 40, 0.22, 0.025, 5, mats.line);
+    box(scene, k * 40, 0.095, p, 5, 0.025, 0.22, mats.line);
+  }
+}
+
+// A varied skyline. Every building is grouped correctly at its own location.
+const buildingColors = [0xdce5e8, 0xc5d5df, 0xe0c9ad, 0x9eb8c8, 0xe7e2d5, 0xb9d1d0, 0xd3c5ac, 0x9eafc1];
+const buildingNames = ['MARKET', 'HOTEL', 'RESTAURANT', 'OFFICES', 'HOSPITAL', 'MALL', 'APARTMENTS', 'CAFE'];
+const destinations = [];
+let buildingNumber = 0;
+for (let gx = -8; gx < 8; gx++) {
+  for (let gz = -8; gz < 8; gz++) {
+    const x = gx * 40 + 20;
+    const z = gz * 40 + 20;
+    const width = 15 + (buildingNumber % 4) * 1.5;
+    const depth = 15 + (buildingNumber % 3) * 2;
+    const height = 13 + ((buildingNumber * 7) % 34);
+    const group = new THREE.Group();
+    group.position.set(x, 0, z);
+    scene.add(group);
+    const color = material(buildingColors[buildingNumber % buildingColors.length]);
+    box(group, 0, height / 2, 0, width, height, depth, color);
+    box(group, 0, height + 0.18, 0, width + 0.5, 0.35, depth + 0.5, mats.dark);
+    for (let y = 2.5; y < height - 1; y += 3.1) {
+      for (let wx = -width / 2 + 1.7; wx < width / 2 - 0.5; wx += 2.8) {
+        box(group, wx, y, depth / 2 + 0.035, 1.5, 1.65, 0.08, mats.glass);
+        box(group, wx, y, -depth / 2 - 0.035, 1.5, 1.65, 0.08, mats.glass);
+      }
+    }
+    box(group, 0, 1.45, depth / 2 + 0.12, 3, 2.9, 0.2, mats.dark);
+    const sign = document.createElement('canvas');
+    sign.width = 512; sign.height = 96;
+    const ctx = sign.getContext('2d');
+    ctx.fillStyle = '#102b38'; ctx.fillRect(0, 0, 512, 96);
+    ctx.fillStyle = '#79f4dc'; ctx.font = 'bold 38px Arial'; ctx.textAlign = 'center';
+    ctx.fillText(buildingNames[buildingNumber % buildingNames.length], 256, 62);
+    const texture = new THREE.CanvasTexture(sign);
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture }));
+    sprite.scale.set(9, 1.7, 1);
+    sprite.position.set(0, height + 2, depth / 2 + 0.2);
+    group.add(sprite);
+    destinations.push({ name: buildingNames[buildingNumber % buildingNames.length], x, z });
+    buildingNumber++;
+  }
+}
+
+// Small parks and roadside trees.
+for (let i = 0; i < 260; i++) {
+  const x = (Math.random() - 0.5) * 620;
+  const z = (Math.random() - 0.5) * 620;
+  if (Math.abs(x % 40) < 10 || Math.abs(z % 40) < 10) continue;
+  const tree = new THREE.Group();
+  tree.position.set(x, 0, z);
+  scene.add(tree);
+  box(tree, 0, 1.2, 0, 0.55, 2.4, 0.55, mats.trunk);
+  const crown = new THREE.Mesh(new THREE.SphereGeometry(1.8, 9, 8), mats.tree);
+  crown.position.y = 3.1;
+  crown.castShadow = true;
+  tree.add(crown);
+}
+
+// Player car: original low-poly city car with wheels, windows and lights.
+const car = new THREE.Group();
+scene.add(car);
+const carPaint = material(0x167f9c, 0.32, 0.35);
+const tireMat = material(0x171b20, 0.9);
+const rimMat = material(0xc5d1d4, 0.3, 0.65);
+const wheelMeshes = [];
+box(car, 0, 0.85, 0, 2.25, 0.75, 4.2, carPaint);
+box(car, 0, 1.48, -0.35, 1.8, 0.85, 2.15, material(0x1d5368, 0.28, 0.2));
+box(car, 0, 1.52, 0.78, 1.72, 0.68, 0.08, mats.glass);
+box(car, 0, 1.52, -1.47, 1.72, 0.68, 0.08, mats.glass);
+box(car, -0.94, 1.5, -0.35, 0.08, 0.7, 1.8, mats.glass);
+box(car, 0.94, 1.5, -0.35, 0.08, 0.7, 1.8, mats.glass);
+const headlightMat = material(0xfff1bf, 0.25, 0.1);
+const tailMat = material(0xe63b37, 0.3);
+box(car, -0.72, 0.88, 2.12, 0.38, 0.22, 0.08, headlightMat);
+box(car, 0.72, 0.88, 2.12, 0.38, 0.22, 0.08, headlightMat);
+box(car, -0.72, 0.9, -2.12, 0.38, 0.22, 0.08, tailMat);
+box(car, 0.72, 0.9, -2.12, 0.38, 0.22, 0.08, tailMat);
+for (const x of [-1.12, 1.12]) {
+  for (const z of [-1.35, 1.35]) {
+    const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.43, 0.43, 0.28, 16), tireMat);
+    wheel.rotation.z = Math.PI / 2;
+    wheel.position.set(x, 0.48, z);
+    wheel.castShadow = true;
+    car.add(wheel);
+    const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.3, 12), rimMat);
+    rim.rotation.z = Math.PI / 2;
+    rim.position.set(x * 1.01, 0.48, z);
+    car.add(rim);
+    wheelMeshes.push(wheel, rim);
+  }
+}
+car.position.set(0, 0, 0);
+
+let money = 50000;
+const moneyEl = document.querySelector('#money');
+moneyEl.textContent = '$' + money.toLocaleString('en-US');
+const speedEl = document.querySelector('#speed');
+const toast = document.querySelector('#toast');
+let toastTimer;
+function notify(message) {
+  toast.textContent = message;
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 2200);
+}
+
+const input = { forward: false, back: false, left: false, right: false, brake: false };
+let velocity = 0;
+let steering = 0;
+const maxSpeed = 42;
+const clock = new THREE.Clock();
+
+function setKey(key, down) {
+  if (key === 'w' || key === 'arrowup') input.forward = down;
+  if (key === 's' || key === 'arrowdown') input.back = down;
+  if (key === 'a' || key === 'arrowleft') input.left = down;
+  if (key === 'd' || key === 'arrowright') input.right = down;
+}
+addEventListener('keydown', e => {
+  const key = e.key.toLowerCase();
+  setKey(key, true);
+  if (key.startsWith('arrow') || key === ' ') e.preventDefault();
+  if (key === ' ') input.brake = true;
+  if (key === 'h') notify('Beep beep!');
+});
+addEventListener('keyup', e => {
+  const key = e.key.toLowerCase();
+  setKey(key, false);
+  if (key === ' ') input.brake = false;
+});
+document.querySelectorAll('[data-move]').forEach(button => {
+  const key = button.dataset.move;
+  button.addEventListener('pointerdown', e => { e.preventDefault(); input[key] = true; });
+  ['pointerup', 'pointerleave', 'pointercancel'].forEach(eventName =>
+    button.addEventListener(eventName, () => input[key] = false)
+  );
+});
+document.querySelector('#brakeBtn').addEventListener('pointerdown', () => input.brake = true);
+['pointerup', 'pointerleave', 'pointercancel'].forEach(eventName =>
+  document.querySelector('#brakeBtn').addEventListener(eventName, () => input.brake = false)
+);
+document.querySelector('#hornBtn').onclick = () => notify('Beep beep! Welcome to the city.');
+document.querySelector('#startBtn').onclick = () => document.querySelector('#welcome').classList.add('hidden');
+
+const mapPanel = document.querySelector('#mapPanel');
+document.querySelector('#mapBtn').onclick = () => {
+  mapPanel.classList.remove('hidden');
+  document.querySelector('#mapList').innerHTML = destinations.slice(0, 32).map(place =>
+    '<div class="mapPlace">' + place.name + ' · ' +
+    Math.round(Math.hypot(place.x - car.position.x, place.z - car.position.z)) + 'm away</div>'
+  ).join('');
+};
+document.querySelector('#closeMap').onclick = () => mapPanel.classList.add('hidden');
+
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.04);
+  if (input.forward) velocity += 25 * dt;
+  if (input.back) velocity -= 20 * dt;
+  if (!input.forward && !input.back) velocity *= Math.pow(0.985, dt * 60);
+  if (input.brake) velocity *= Math.pow(0.88, dt * 60);
+  velocity = THREE.MathUtils.clamp(velocity, -13, maxSpeed);
+
+  const steeringInput = (input.left ? 1 : 0) - (input.right ? 1 : 0);
+  steering = THREE.MathUtils.lerp(steering, steeringInput, Math.min(1, dt * 5));
+  if (Math.abs(velocity) > 0.3) car.rotation.y += steering * dt * 1.35 * Math.sign(velocity) * Math.min(1, Math.abs(velocity) / 8);
+  const forward = new THREE.Vector3(Math.sin(car.rotation.y), 0, Math.cos(car.rotation.y));
+  car.position.addScaledVector(forward, velocity * dt);
+  car.position.x = THREE.MathUtils.clamp(car.position.x, -320, 320);
+  car.position.z = THREE.MathUtils.clamp(car.position.z, -320, 320);
+  wheelMeshes.forEach(wheel => wheel.rotation.x += velocity * dt / 0.43);
+
+  const follow = new THREE.Vector3(
+    car.position.x - Math.sin(car.rotation.y) * 10,
+    6.2,
+    car.position.z - Math.cos(car.rotation.y) * 10
+  );
+  camera.position.lerp(follow, 1 - Math.pow(0.001, dt));
+  camera.lookAt(car.position.x, car.position.y + 1, car.position.z + 1);
+  speedEl.textContent = Math.round(Math.abs(velocity) * 3.6) + ' KM/H';
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
